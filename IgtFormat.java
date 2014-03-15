@@ -16,34 +16,60 @@ public class IgtFormat {
 
 	public static void main(String[] args) throws IOException{
    
+	 // igtFormatFile();
+     igtWordAlignment();
+
+    }
+	
+   public static void igtWordAlignment() throws IOException {
       Map<Integer, String> id = new HashMap<Integer, String>();
-      IdList(id);
-      List<ChineseBitext> chineseBitexts = CantoBitextReader.read("chinese_cantonese.txt",false);
-      PrintStream igt = new PrintStream("yue.txt");
-      
-      int line_num = 1;
-      
-      
-      for (ChineseBitext chineseBitext: chineseBitexts) {
-    	  
-         if (id.containsKey(chineseBitext.getId())) {
-        	String cantoneseText = chineseBitext.getOriginalCantoneseText();
-        	String mandarinText = chineseBitext.getOriginalMandarinText();    	
-        	List<IntPair> wordAlignments = chineseBitext.getWordAlignments();
-        	Map<Integer, List<Integer>> alignments = intPairConverter(wordAlignments);
-        	String glossText = getGlossText(cantoneseText, mandarinText, alignments);       	
-            igt.println("doc_id=" + chineseBitext.getId() + ".txt " + line_num + " " + (line_num + 2) + " L G T");
-            igt.println("language: cantonese (yue)");
-            igt.println("line=" + line_num + " tag=L:\t" + cantoneseText);
-            igt.println("line=" + (line_num + 1) + " tag=G:\t" + glossText);
-            igt.println("line=" + (line_num + 2) + " tag=T:\t" + mandarinText);
-            igt.println();
-            line_num += 3;
+      catchDocIds(id);
+	   List<ChineseBitext> chineseBitexts = CantoBitextReader.read("chinese_cantonese.txt",false);
+	   PrintStream aln = new PrintStream("igt_aln.pml");
+	   head(aln);
+	   for (ChineseBitext chineseBitext: chineseBitexts) {
+		   int curId = chineseBitext.getId();
+	      if (id.containsKey(curId)) {
+	    	  aln.println("\t\t<LM xml:id=\"" + curId + "\">");
+	    	  aln.println("\t\t\t" + "<tree_a.rf>a#" + curId + "</tree_a.rf>");
+	    	  aln.println("\t\t\t" + "<tree_b.rf>b#" + curId + "</tree_b.rf>");
+	    	  aln.println("\t\t\t<node_alignment>");  	
+	          List<IntPair> wordAlignments = chineseBitext.getWordAlignments();
+	          Map<Integer, List<Integer>> alignments = intPairConverter(wordAlignments);
+	          printWordAlign(aln, alignments, curId);
+              aln.println("\t\t\t</node_alignment>");
+              aln.println("\t\t</LM>");
          }
       }
-      
-      igt.close();
+	   tail(aln);
+	   aln.close();
    }
+   
+	public static void igtFormatFile() throws IOException {
+	      Map<Integer, String> id = new HashMap<Integer, String>();
+	      IdList(id);
+	      List<ChineseBitext> chineseBitexts = CantoBitextReader.read("chinese_cantonese.txt",false);
+	      PrintStream igt = new PrintStream("yue_top500.txt");
+	      int line_num = 1;      
+	      for (ChineseBitext chineseBitext: chineseBitexts) {
+	    	  
+	         if (id.containsKey(chineseBitext.getId())) {
+	        	String cantoneseText = chineseBitext.getOriginalCantoneseText();
+	        	String mandarinText = chineseBitext.getOriginalMandarinText();    	
+	        	List<IntPair> wordAlignments = chineseBitext.getWordAlignments();
+	        	Map<Integer, List<Integer>> alignments = intPairConverter(wordAlignments);
+	        	String glossText = getGlossText(cantoneseText, mandarinText, alignments);       	
+	            igt.println("doc_id=" + chineseBitext.getId() + ".txt " + line_num + " " + (line_num + 2) + " L G T");
+	            igt.println("language: cantonese (yue)");
+	            igt.println("line=" + line_num + " tag=L:\t" + cantoneseText);
+	            igt.println("line=" + (line_num + 1) + " tag=G:\t" + glossText);
+	            igt.println("line=" + (line_num + 2) + " tag=T:\t" + mandarinText);
+	            igt.println();
+	            line_num += 3;
+	         }
+	      }
+	      igt.close();
+	}
    
    private static void IdList(Map<Integer, String> id) throws IOException {
       
@@ -116,5 +142,50 @@ public class IgtFormat {
 	   }
 	   return alignedMandarinGloss;
    }
-   
+
+	private static void catchDocIds(Map<Integer, String> id) throws IOException {
+		      
+		BufferedReader yue_file = new BufferedReader(new FileReader("yue.txt"));
+      String line = "";
+
+		while ((line = yue_file.readLine()) != null) {
+			String route = "doc_id=";
+			if (line.contains(route)) {
+		      line = line.replaceAll(route, "");
+            line = line.replaceAll(".txt\\b.*", "");
+            id.put(Integer.parseInt(line), line);
+			}
+		}
+		      
+		yue_file.close();
+	}  
+	
+	private static void head(PrintStream p) {
+		p.println("<tree_alignment>");
+		p.println("\t<head>");
+		p.println("\t\t<schema href=\"alignment_scheme.xml\">");
+		p.println("\t\t<references>");
+		p.println("\t\t\t<reffile href=\"igt_yue.pml\" id=\"a\" name=\"document_a\"/>");
+		p.println("\t\t\t<reffile href=\"igt_man.pml\" id=\"b\" name=\"document_b\"/>");
+		p.println("\t\t\t</references>");
+		p.println("\t</head>");
+		p.println("\t<body>");
+	}
+	
+	private static void tail(PrintStream p) {
+		p.println("\t</body>");
+		p.print("</tree_alignment>");
+	}
+	
+	private static void printWordAlign(PrintStream p, Map<Integer, List<Integer>> align, int curId) {
+		for (int i : align.keySet()) {
+			for (int j = 0; j < align.get(i).size(); j ++) {
+				p.println("\t\t\t\t<LM>");
+				p.println("\t\t\t\t\t<a.rf>a#" + curId + "-" + i + "</a.rf>");
+				p.println("\t\t\t\t\t<b.rf>b#" + curId + "-" + align.get(i).get(j) + "</b.rf>");
+				p.println("\t\t\t\t</LM>");
+			}
+		}
+	}
+
 }
