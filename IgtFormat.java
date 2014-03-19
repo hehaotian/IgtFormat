@@ -163,7 +163,7 @@ public class IgtFormat {
 	private static void head(PrintStream p) {
 		p.println("<tree_alignment>");
 		p.println("\t<head>");
-		p.println("\t\t<schema href=\"alignment_scheme.xml\">");
+		p.println("\t\t<schema href=\"alignment_schema.xml\"/>");
 		p.println("\t\t<references>");
 		p.println("\t\t\t<reffile href=\"igt_yue.pml\" id=\"a\" name=\"document_a\"/>");
 		p.println("\t\t\t<reffile href=\"igt_man.pml\" id=\"b\" name=\"document_b\"/>");
